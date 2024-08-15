@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail LLM Integration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .chat-container {
+            flex: 2;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-right: 20px;
+        }
+        .expenses-container {
+            flex: 1;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+        .message p {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .message.email p {
+            background-color: #e3f2fd;
+            align-self: flex-start;
+        }
+        .message.user p {
+            background-color: #e8eaf6;
+            margin-left: auto;
+        }
+        .message.llm p {
+            background-color: #fff3e0;
+            align-self: flex-start;
+        }
+        form {
+            display: flex;
+            margin-top: 15px;
+        }
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .expense-item {
+            background-color: #f1f8e9;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <h1>Gmail LLM Integration</h1>
+            <div class="chat-box" id="chat-box">
+                {% for msg in conversation %}
+                    <div class="message {{ msg.sender }}">
+                        <p>{{ msg.message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <form id="check-email-form">
+                <input type="text" id="query" name="query" placeholder="Enter email query" required>
+                <button type="submit">Check Email</button>
+            </form>
+
+            <form id="respond-llm-form">
+                <input type="text" id="llm_response" name="llm_response" placeholder="Your response" required>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+
+        <div class="expenses-container">
+            <h2>Gastos Registrados</h2>
+            <div id="expenses-list">
+                {% for gasto in gastos %}
+                    <div class="expense-item">
+                        <p><strong>Fecha:</strong> {{ gasto.fecha }}</p>
+                        <p><strong>Establecimiento:</strong> {{ gasto.establecimiento }}</p>
+                        <p><strong>Valor:</strong> {{ gasto.valor }}</p>
+                        <p><strong>Categoría:</strong> {{ gasto.categoria }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateChatBox(conversation) {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+            conversation.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', msg.sender);
+                const messageContent = document.createElement('p');
+                messageContent.textContent = msg.message;
+                messageDiv.appendChild(messageContent);
+                chatBox.appendChild(messageDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function updateExpensesList(gastos) {
+            const expensesList = document.getElementById('expenses-list');
+            expensesList.innerHTML = '';
+            gastos.forEach(gasto => {
+                const expenseItem = document.createElement('div');
+                expenseItem.classList.add('expense-item');
+                expenseItem.innerHTML = `
+                    <p><strong>Fecha:</strong> ${gasto.fecha}</p>
+                    <p><strong>Establecimiento:</strong> ${gasto.establecimiento}</p>
+                    <p><strong>Valor:</strong> ${gasto.valor}</p>
+                    <p><strong>Categoría:</strong> ${gasto.categoria}</p>
+                `;
+                expensesList.appendChild(expenseItem);
+            });
+        }
+
+        document.getElementById('check-email-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('/check-email', {
+                method: 'POST',
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateChatBox(data.conversation);
+                updateExpensesList(data.gastos);
+                document.getElementById('query').value = '';
+            });
+        });
+
+        document.getElementById('respond-llm-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('/respond-llm', {
+                method: 'POST',
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateChatBox(data.conversation);
+                updateExpensesList(data.gastos);
+                document.getElementById('llm_response').value = '';
+            });
+        });
+    </script>
+</body>
+</html>

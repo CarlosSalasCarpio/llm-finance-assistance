@@ -1,8 +1,13 @@
 from openai import OpenAI
+import re
+import ast
+
+# LLM initialization
 client = OpenAI()
 
 role_system = "system"
 role_user = "user"
+role_assistant = "assistant"
 
 content_system = (
     "Eres un asistente que se utilizará dentro de una app de finanzas personales. "
@@ -24,6 +29,7 @@ content_system = (
     "Es importante que tú propongas una categoría al usuario, según el contenido. Por ejemplo, en la información mostrada, al ser el establecimiento "
     "una barbería (Barber Planet), propondrás la categoría cuidado personal. "
     "Preguntarás al usuario si está de acuerdo con la categoría asignada. Si el usuario confirma, devolverás el diccionario definitivo. "
+    "Es de vital importancia que repuesta tenga simpere la siguiente estructura 'Perfecto, el gasto ha sido registrado con éxito [y aqui el diccionario]'"
     "La estructura de tu respuesta deberá contener la descripción de la transacción, la categoría propuesta y, explícitamente, "
     "preguntar al usuario si está de acuerdo o no con la categoría. "
     "Esto puede ser del estilo: 'Tienes una nueva transacción por un valor de $90,000.00 en Barber Planet. Esto parece pertenecer "
@@ -35,9 +41,17 @@ messages = [
     {"role": role_system, "content": content_system}
 ]
 
-def send_message(user_content):
-    # Agregar el mensaje del usuario al historial
-    messages.append({"role": role_user, "content": user_content})
+# Variable global para almacenar los gastos
+gastos_mes = []
+
+def send_message(user_content, is_user_response=False):
+    global gastos_mes
+    
+    # Si es una respuesta del usuario, el rol es "user"
+    role = role_user if is_user_response else role_assistant
+    
+    # Agregar el mensaje al historial
+    messages.append({"role": role, "content": user_content})
     
     # Hacer la solicitud a la API con todo el historial
     completion = client.chat.completions.create(
@@ -51,10 +65,15 @@ def send_message(user_content):
     # Agregar la respuesta del asistente al historial
     messages.append({"role": "assistant", "content": assistant_message})
     
+    # Buscar un diccionario en la respuesta del asistente
+    dict_match = re.search(r'\{.*?\}', assistant_message, re.DOTALL)
+    if dict_match:
+        try:
+            gasto_dict = ast.literal_eval(dict_match.group())
+            gastos_mes.append(gasto_dict)
+            print(f"Nuevo gasto registrado: {gasto_dict}")
+            print(f"Total de gastos registrados: {len(gastos_mes)}")
+        except:
+            print("Error al procesar el diccionario")
+    
     return assistant_message
-
-while True:
-    # Solicitar el mensaje del usuario a través de un input
-    user_message = input("Menasaje: ")
-    response = send_message(user_message)
-    print(response)
