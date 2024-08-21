@@ -6,7 +6,7 @@ from llm_processing import send_message  # Asegúrate de que llm_processing.py e
 async def handle_message(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     # Enviar el mensaje al LLM para su procesamiento
-    llm_response = send_message(user_message, is_user_response=True)
+    llm_response = send_message(user_message, 'user')
     # Devolver la respuesta del LLM al usuario en Telegram
     await update.message.reply_text(llm_response)
 
